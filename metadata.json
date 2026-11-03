@@ -1,0 +1,6 @@
+{
+  "name": "Daily Collection Admin",
+  "description": "Mobile-first one-handed collection management system for loan officers and microfinance administrators to track daily repayments, borrowers, loans, receipts, and audit logs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
