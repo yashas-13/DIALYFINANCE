@@ -21,15 +21,16 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
   const [selectedBorrowerId, setSelectedBorrowerId] = useState(
     initialBorrowerId || borrowers[0]?.id || ''
   );
-  const [principalRupees, setPrincipalRupees] = useState('20000');
-  const [interestType, setInterestType] = useState<InterestType>('flat');
-  const [interestRatePercent, setInterestRatePercent] = useState('12');
-  const [frequency, setFrequency] = useState<RepaymentFrequency>('daily');
-  const [durationValue, setDurationValue] = useState('50'); // 50 installments
+  const [principalRupees, setPrincipalRupees] = useState('10000');
+  const [interestType, setInterestType] = useState<InterestType>('upfront_deduction');
+  const [customDeductionRupees, setCustomDeductionRupees] = useState('2000');
+  const [interestRatePercent, setInterestRatePercent] = useState('20');
+  const [frequency, setFrequency] = useState<RepaymentFrequency>('weekly');
+  const [durationValue, setDurationValue] = useState('10'); // 10 installments
   const [startDate, setStartDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [collectionDay, setCollectionDay] = useState('Everyday');
+  const [collectionDay, setCollectionDay] = useState('Thursday');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -47,11 +48,15 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
       principalPaise: pPaise,
       interestType,
       annualInterestRatePercent: rate,
+      customDeductionPaise:
+        interestType === 'upfront_deduction' && customDeductionRupees
+          ? rupeesToPaise(customDeductionRupees)
+          : undefined,
       durationValue: duration,
       frequency,
       startDate,
     });
-  }, [principalRupees, interestType, interestRatePercent, frequency, durationValue, startDate]);
+  }, [principalRupees, interestType, customDeductionRupees, interestRatePercent, frequency, durationValue, startDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,17 +78,35 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
       return;
     }
 
+    if (interestType === 'upfront_deduction') {
+      const deductionPaise = rupeesToPaise(customDeductionRupees);
+      if (deductionPaise >= pPaise) {
+        setError('Upfront deduction cannot be greater than or equal to the sanctioned loan amount.');
+        return;
+      }
+    }
+
     onSave({
       borrowerId: selectedBorrowerId,
       principalPaise: pPaise,
       interestType,
-      interestRatePercent: parseFloat(interestRatePercent) || 12,
+      interestRatePercent: parseFloat(interestRatePercent) || 0,
+      customDeductionPaise:
+        interestType === 'upfront_deduction' && customDeductionRupees
+          ? rupeesToPaise(customDeductionRupees)
+          : undefined,
       frequency,
       durationValue: duration,
       startDate,
       collectionDay,
       notes: notes.trim() || undefined,
     });
+  };
+
+  const handleApplyDeductionPercent = (pct: number) => {
+    const p = parseFloat(principalRupees) || 0;
+    const deduction = Math.round(p * (pct / 100));
+    setCustomDeductionRupees(String(deduction));
   };
 
   return (
@@ -140,11 +163,58 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
             </select>
           </div>
 
-          {/* Principal & Interest Type */}
+          {/* Interest Calculation Type */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Lending Model & Calculation
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setInterestType('upfront_deduction')}
+                className={`py-2 px-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                  interestType === 'upfront_deduction'
+                    ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="font-bold flex items-center gap-1">
+                  <span>Upfront Deduction</span>
+                </div>
+                <div className="text-[10px] opacity-80 font-normal">Disburse net cash, repay face value</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInterestType('flat')}
+                className={`py-2 px-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                  interestType === 'flat'
+                    ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="font-bold">Flat Rate</div>
+                <div className="text-[10px] opacity-80 font-normal">Fixed total interest added</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInterestType('reducing')}
+                className={`py-2 px-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                  interestType === 'reducing'
+                    ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="font-bold">Reducing (EMI)</div>
+                <div className="text-[10px] opacity-80 font-normal">Standard bank amortized</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Sanctioned Principal & Upfront Deduction Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="principal-amount">
-                Principal Amount (₹) <span className="text-rose-500">*</span>
+                {interestType === 'upfront_deduction' ? 'Sanctioned Face Value (₹)' : 'Principal Amount (₹)'} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">₹</span>
@@ -152,65 +222,83 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
                   id="principal-amount"
                   type="number"
                   value={principalRupees}
-                  onChange={(e) => setPrincipalRupees(e.target.value)}
-                  placeholder="20000"
+                  onChange={(e) => {
+                    const newPrincipal = e.target.value;
+                    setPrincipalRupees(newPrincipal);
+                    if (interestType === 'upfront_deduction') {
+                      const p = parseFloat(newPrincipal) || 0;
+                      setCustomDeductionRupees(String(Math.round(p * 0.2)));
+                    }
+                  }}
+                  placeholder="10000"
                   required
                   min="1000"
                   step="500"
-                  className="w-full h-11 pl-8 pr-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-emerald-500 tabular-nums"
+                  className="w-full h-11 pl-8 pr-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:border-emerald-500 tabular-nums"
                 />
               </div>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
+                {interestType === 'upfront_deduction'
+                  ? 'Full amount borrower will repay over time.'
+                  : 'Total principal sanctioned.'}
+              </span>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Interest Calculation Type
-              </label>
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setInterestType('flat')}
-                  className={`h-9 rounded-lg text-xs font-semibold transition-colors ${
-                    interestType === 'flat'
-                      ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  Flat Rate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInterestType('reducing')}
-                  className={`h-9 rounded-lg text-xs font-semibold transition-colors ${
-                    interestType === 'reducing'
-                      ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  Reducing (EMI)
-                </button>
+            {interestType === 'upfront_deduction' ? (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="upfront-deduction">
+                  Upfront Deduction (₹) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">₹</span>
+                  <input
+                    id="upfront-deduction"
+                    type="number"
+                    value={customDeductionRupees}
+                    onChange={(e) => setCustomDeductionRupees(e.target.value)}
+                    placeholder="2000"
+                    required
+                    min="0"
+                    step="100"
+                    className="w-full h-11 pl-8 pr-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:border-emerald-500 tabular-nums"
+                  />
+                </div>
+                {/* Preset chips */}
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] text-slate-400">Quick:</span>
+                  {[10, 15, 20, 25].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => handleApplyDeductionPercent(pct)}
+                      className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="interest-rate">
+                  Annual Interest Rate (%)
+                </label>
+                <input
+                  id="interest-rate"
+                  type="number"
+                  value={interestRatePercent}
+                  onChange={(e) => setInterestRatePercent(e.target.value)}
+                  placeholder="12"
+                  step="0.5"
+                  min="0"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 tabular-nums"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Rate & Repayment Frequency */}
+          {/* Repayment Frequency & Duration */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="interest-rate">
-                Annual Interest Rate (%)
-              </label>
-              <input
-                id="interest-rate"
-                type="number"
-                value={interestRatePercent}
-                onChange={(e) => setInterestRatePercent(e.target.value)}
-                placeholder="12"
-                step="0.5"
-                min="0"
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 tabular-nums"
-              />
-            </div>
-
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Repayment Frequency
@@ -220,15 +308,12 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
                 onChange={(e) => setFrequency(e.target.value as RepaymentFrequency)}
                 className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 capitalize"
               >
-                <option value="daily">Daily Repayment</option>
                 <option value="weekly">Weekly Repayment</option>
+                <option value="daily">Daily Repayment</option>
                 <option value="monthly">Monthly Repayment</option>
               </select>
             </div>
-          </div>
 
-          {/* Duration & Start Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="duration-installments">
                 Number of Installments ({frequency === 'daily' ? 'days' : frequency === 'weekly' ? 'weeks' : 'months'})
@@ -238,13 +323,16 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
                 type="number"
                 value={durationValue}
                 onChange={(e) => setDurationValue(e.target.value)}
-                placeholder="50"
+                placeholder="10"
                 min="1"
                 required
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 tabular-nums"
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-emerald-500 tabular-nums"
               />
             </div>
+          </div>
 
+          {/* Start Date & Collection Day */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="disbursement-date">
                 Start / Disbursement Date
@@ -258,55 +346,136 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
                 className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="collection-day">
+                Collection Day / Slot
+              </label>
+              <input
+                id="collection-day"
+                type="text"
+                value={collectionDay}
+                onChange={(e) => setCollectionDay(e.target.value)}
+                placeholder="Everyday / Thursday"
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500"
+              />
+            </div>
           </div>
 
-          {/* Live Financial Summary Box */}
+          {/* Live Financial Summary Box with Upfront Deduction Breakdown */}
           {calculationResult && (
-            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-                <Calculator className="w-4 h-4" />
-                <span>Real-Time Repayment Summary</span>
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5">
+                  <Calculator className="w-4 h-4" />
+                  <span>
+                    {interestType === 'upfront_deduction'
+                      ? 'Upfront Deduction Repayment Summary'
+                      : 'Real-Time Repayment Summary'}
+                  </span>
+                </div>
+                {interestType === 'upfront_deduction' && (
+                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 rounded font-bold">
+                    Net Cash Model
+                  </span>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400 block">Principal</span>
-                  <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
-                    {formatINR(calculationResult.principalPaise)}
-                  </span>
+              {interestType === 'upfront_deduction' ? (
+                <>
+                  {/* Prominent 3-way figures strip */}
+                  <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-100 dark:border-emerald-900/50 text-center">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase">1. Sanctioned</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base tabular-nums">
+                        {formatINR(calculationResult.sanctionedAmountPaise)}
+                      </span>
+                      <span className="text-[9px] text-slate-400 block">Face Value</span>
+                    </div>
+
+                    <div className="border-x border-slate-200 dark:border-slate-800 px-1">
+                      <span className="text-[10px] text-rose-500 block font-semibold uppercase">2. Upfront Cut</span>
+                      <span className="font-extrabold text-rose-600 dark:text-rose-400 text-sm sm:text-base tabular-nums">
+                        - {formatINR(calculationResult.upfrontDeductionPaise)}
+                      </span>
+                      <span className="text-[9px] text-slate-400 block">Retained fee</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold uppercase">3. Disburse Cash</span>
+                      <span className="font-black text-emerald-600 dark:text-emerald-400 text-base sm:text-lg tabular-nums">
+                        {formatINR(calculationResult.netDisbursedPaise)}
+                      </span>
+                      <span className="text-[9px] text-emerald-600 dark:text-emerald-400 block font-bold">Net in Hand</span>
+                    </div>
+                  </div>
+
+                  {/* Repayment schedule summary */}
+                  <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block">Weekly Installment</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
+                        {formatINR(calculationResult.installmentAmountPaise)}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">/ {frequency}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block">Total Repayable</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
+                        {formatINR(calculationResult.totalPayablePaise)}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">by borrower</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block">Maturity Date</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                        {calculationResult.maturityDate}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">{calculationResult.totalInstallments} collections</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">Principal</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
+                      {formatINR(calculationResult.principalPaise)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">Total Interest</span>
+                    <span className="font-extrabold text-emerald-700 dark:text-emerald-300 text-sm tabular-nums">
+                      {formatINR(calculationResult.totalInterestPaise)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">Total Payable</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
+                      {formatINR(calculationResult.totalPayablePaise)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">Installment EMI</span>
+                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base tabular-nums">
+                      {formatINR(calculationResult.installmentAmountPaise)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block">/ {frequency}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">Maturity Date</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      {calculationResult.maturityDate}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">Total Payments</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      {calculationResult.totalInstallments} collections
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400 block">Total Interest</span>
-                  <span className="font-extrabold text-emerald-700 dark:text-emerald-300 text-sm tabular-nums">
-                    {formatINR(calculationResult.totalInterestPaise)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400 block">Total Payable</span>
-                  <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
-                    {formatINR(calculationResult.totalPayablePaise)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400 block">Installment EMI</span>
-                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base tabular-nums">
-                    {formatINR(calculationResult.installmentAmountPaise)}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">/ {frequency}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400 block">Maturity Date</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    {calculationResult.maturityDate}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400 block">Total Payments</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    {calculationResult.totalInstallments} collections
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Bell, Moon, Sun, LogOut, Search } from 'lucide-react';
+import { Shield, Bell, Moon, Sun, LogOut, Search, Radio, BookOpen } from 'lucide-react';
 import { AdminUser } from '../types';
 
 interface TopNavProps {
@@ -10,6 +10,8 @@ interface TopNavProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   onOpenSearch?: () => void;
+  onOpenIOSPush?: () => void;
+  onOpenInstructions?: () => void;
   title?: string;
   subtitle?: string;
 }
@@ -22,6 +24,8 @@ export const TopNav: React.FC<TopNavProps> = ({
   isDarkMode,
   onToggleDarkMode,
   onOpenSearch,
+  onOpenIOSPush,
+  onOpenInstructions,
   title = 'Daily Collection',
   subtitle,
 }) => {
@@ -64,6 +68,34 @@ export const TopNav: React.FC<TopNavProps> = ({
               aria-label="Quick Search"
             >
               <Search className="w-5 h-5" />
+            </button>
+          )}
+
+          {onOpenInstructions && (
+            <button
+              onClick={onOpenInstructions}
+              className="min-h-[44px] px-2.5 flex items-center gap-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors"
+              aria-label="Feature Instructions & User Guide"
+              title="Feature Instructions & User Guide"
+            >
+              <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-bold hidden sm:inline">Guide</span>
+            </button>
+          )}
+
+          {onOpenIOSPush && (
+            <button
+              onClick={onOpenIOSPush}
+              className="min-h-[44px] px-2.5 flex items-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+              aria-label="iOS Push Notifications"
+              title="iOS Push Notifications & APNs Triggers"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <Radio className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-semibold hidden sm:inline">iOS Push</span>
             </button>
           )}
 

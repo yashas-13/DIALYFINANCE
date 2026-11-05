@@ -12,6 +12,10 @@ import {
   Clock,
   KeyRound,
   CheckCircle2,
+  Radio,
+  Smartphone,
+  BookOpen,
+  Trash2,
 } from 'lucide-react';
 import { BusinessSettings, AdminUser } from '../types';
 
@@ -20,9 +24,12 @@ interface AdminSettingsViewProps {
   admin: AdminUser;
   onUpdateSettings: (updates: Partial<BusinessSettings>) => void;
   onResetDemoData: () => void;
+  onResetToClean?: () => void;
   onExportJSON: () => void;
   onImportJSON: (jsonStr: string) => boolean;
   onNavigateTab: (tab: any) => void;
+  onOpenIOSPush?: () => void;
+  onOpenInstructions?: () => void;
 }
 
 export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
@@ -30,9 +37,12 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
   admin,
   onUpdateSettings,
   onResetDemoData,
+  onResetToClean,
   onExportJSON,
   onImportJSON,
   onNavigateTab,
+  onOpenIOSPush,
+  onOpenInstructions,
 }) => {
   const [businessName, setBusinessName] = useState(settings.businessName);
   const [address, setAddress] = useState(settings.address);
@@ -332,6 +342,53 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
         </button>
       </form>
 
+      {/* iOS Push Notifications & APNs Integration Card */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-4 sm:p-6 border border-slate-700/80 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+              <Radio className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-white">
+                  Apple iOS Push Notification System
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                  APNs & VAPID Ready
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                Trigger real-time collection alerts, overdue reminders, and payment receipts to iOS devices running iOS 16.4+ (PWA Home Screen standalone).
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-slate-400">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Apple Web Push Protocol (RFC 8292)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Tri-Tone Audio Chime
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Lock Screen Timers (5s–30s)
+                </span>
+              </div>
+            </div>
+          </div>
+          {onOpenIOSPush && (
+            <button
+              onClick={onOpenIOSPush}
+              className="min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all shrink-0 active:scale-[0.98]"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Launch Push Console</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Section 3: Data Management & Backups */}
       <div className="bg-white dark:bg-slate-800/90 rounded-2xl p-4 sm:p-6 border border-slate-200 dark:border-slate-700/80 shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-3">
@@ -346,13 +403,13 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button
             onClick={onExportJSON}
             className="min-h-[50px] p-3 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
           >
             <Download className="w-4 h-4 text-emerald-600" />
-            <span>Export Full JSON Backup</span>
+            <span>Export JSON Backup</span>
           </button>
 
           <label className="min-h-[50px] p-3 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors">
@@ -363,16 +420,45 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
           <button
             onClick={() => {
-              if (confirm('Reset database to clean default realistic demo state?')) {
-                onResetDemoData();
+              if (confirm('Clear all borrowers, loans, and payments to a completely clean operational state?')) {
+                if (onResetToClean) onResetToClean();
               }
             }}
             className="min-h-[50px] p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
           >
+            <Trash2 className="w-4 h-4" />
+            <span>Reset to Clean Slate</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (confirm('Load sample realistic demo records for training and testing?')) {
+                onResetDemoData();
+              }
+            }}
+            className="min-h-[50px] p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+          >
             <RefreshCw className="w-4 h-4" />
-            <span>Reset Demo Data</span>
+            <span>Load Sample Demo Data</span>
           </button>
         </div>
+
+        {/* Feature Instructions Help Banner */}
+        {onOpenInstructions && (
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+              <BookOpen className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Need help operating features, upfront loans, or receipts?</span>
+            </div>
+            <button
+              onClick={onOpenInstructions}
+              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Open User Guide</span>
+            </button>
+          </div>
+        )}
 
         <div className="pt-2 flex items-center justify-between text-xs text-slate-500">
           <span>View immutable activity ledger:</span>

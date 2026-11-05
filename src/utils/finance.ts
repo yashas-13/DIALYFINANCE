@@ -1,15 +1,11 @@
-/**
- * Financial calculation engine for Daily Collection Admin.
- * Uses integer paise (1 INR = 100 paise) to eliminate floating-point precision errors.
- */
-
 export interface LoanCalculationInput {
   principalPaise: number;
-  interestType: 'flat' | 'reducing';
-  annualInterestRatePercent: number; // e.g., 18 for 18% p.a. or flat rate
-  durationValue: number; // e.g. 100 days, 20 weeks, 12 months
+  interestType: 'flat' | 'reducing' | 'upfront_deduction';
+  annualInterestRatePercent: number; // e.g., 20 for 20% or flat period rate
+  durationValue: number; // e.g. 100 days, 10 weeks, 12 months
   frequency: 'daily' | 'weekly' | 'monthly';
   startDate: string; // YYYY-MM-DD
+  customDeductionPaise?: number; // optional manual override
 }
 
 export interface InstallmentScheduleItem {
@@ -23,6 +19,9 @@ export interface InstallmentScheduleItem {
 
 export interface LoanCalculationResult {
   principalPaise: number;
+  sanctionedAmountPaise: number;
+  upfrontDeductionPaise: number;
+  netDisbursedPaise: number;
   totalInterestPaise: number;
   totalPayablePaise: number;
   totalInstallments: number;
@@ -135,6 +134,9 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
   if (principalPaise <= 0 || durationValue <= 0) {
     return {
       principalPaise: 0,
+      sanctionedAmountPaise: 0,
+      upfrontDeductionPaise: 0,
+      netDisbursedPaise: 0,
       totalInterestPaise: 0,
       totalPayablePaise: 0,
       totalInstallments: 0,
@@ -149,9 +151,79 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
   let installmentAmountPaise = 0;
   const schedule: InstallmentScheduleItem[] = [];
 
-  if (interestType === 'flat') {
+  if (interestType === 'upfront_deduction') {
+    // Upfront Deduction (Discounting Loan):
+    // E.g. Sanctioned = ₹10,000, Upfront Deduction = ₹2,000, Net Disbursed Cash = ₹8,000.
+    // Borrower repays the full ₹10,000 face value across installments (e.g. 10 weeks of ₹1,000).
+    const sanctionedAmountPaise = principalPaise;
+
+    let upfrontDeductionPaise = 0;
+    if (input.customDeductionPaise !== undefined && input.customDeductionPaise >= 0) {
+      upfrontDeductionPaise = input.customDeductionPaise;
+    } else {
+      let timeInYears = 0;
+      if (frequency === 'daily') {
+        timeInYears = durationValue / 365;
+      } else if (frequency === 'weekly') {
+        timeInYears = durationValue / 52;
+      } else {
+        timeInYears = durationValue / 12;
+      }
+      upfrontDeductionPaise = Math.round(principalPaise * (annualInterestRatePercent / 100) * Math.max(timeInYears, 0.08));
+    }
+
+    // Ensure deduction doesn't exceed sanctioned amount
+    if (upfrontDeductionPaise > sanctionedAmountPaise) {
+      upfrontDeductionPaise = sanctionedAmountPaise;
+    }
+
+    const netDisbursedPaise = Math.max(0, sanctionedAmountPaise - upfrontDeductionPaise);
+    const totalPayablePaise = sanctionedAmountPaise;
+    const totalInterestPaise = upfrontDeductionPaise;
+
+    installmentAmountPaise = Math.round(totalPayablePaise / totalInstallments);
+
+    let currentBalance = totalPayablePaise;
+    let accumulatedPayable = 0;
+
+    for (let i = 1; i <= totalInstallments; i++) {
+      const dueDate = getNextDueDate(startDate, i, frequency);
+      let thisInstallment = installmentAmountPaise;
+
+      if (i === totalInstallments) {
+        thisInstallment = totalPayablePaise - accumulatedPayable;
+      }
+      accumulatedPayable += thisInstallment;
+      currentBalance = Math.max(0, currentBalance - thisInstallment);
+
+      // In upfront deduction, profit was deducted on day 0,
+      // so installments directly retire the sanctioned face value balance.
+      schedule.push({
+        installmentNumber: i,
+        dueDate,
+        principalPaise: thisInstallment,
+        interestPaise: 0,
+        installmentAmountPaise: thisInstallment,
+        remainingBalancePaise: currentBalance,
+      });
+    }
+
+    const maturityDate = schedule[schedule.length - 1]?.dueDate || startDate;
+
+    return {
+      principalPaise,
+      sanctionedAmountPaise,
+      upfrontDeductionPaise,
+      netDisbursedPaise,
+      totalInterestPaise,
+      totalPayablePaise,
+      totalInstallments,
+      installmentAmountPaise,
+      maturityDate,
+      schedule,
+    };
+  } else if (interestType === 'flat') {
     // Flat rate: Total interest = Principal * (Rate / 100) * (Period in years)
-    // For microfinance daily/weekly, rate is often flat percentage for duration or annualised
     let timeInYears = 0;
     if (frequency === 'daily') {
       timeInYears = durationValue / 365;
@@ -199,6 +271,9 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
 
     return {
       principalPaise,
+      sanctionedAmountPaise: principalPaise,
+      upfrontDeductionPaise: 0,
+      netDisbursedPaise: principalPaise,
       totalInterestPaise,
       totalPayablePaise,
       totalInstallments,
@@ -257,6 +332,9 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
 
     return {
       principalPaise,
+      sanctionedAmountPaise: principalPaise,
+      upfrontDeductionPaise: 0,
+      netDisbursedPaise: principalPaise,
       totalInterestPaise,
       totalPayablePaise,
       totalInstallments,

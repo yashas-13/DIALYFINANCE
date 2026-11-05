@@ -167,6 +167,11 @@ export const LoansView: React.FC<LoansViewProps> = ({
                       >
                         {loan.status}
                       </span>
+                      {loan.interestType === 'upfront_deduction' ? (
+                        <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/70 px-2 py-0.5 rounded">
+                          Upfront Cut
+                        </span>
+                      ) : null}
                       <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded capitalize">
                         {loan.frequency} EMI
                       </span>
@@ -174,6 +179,11 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
                     <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1">
                       {loan.borrowerName} <span className="text-slate-400 font-normal">({loan.borrowerPhone})</span>
+                      {loan.interestType === 'upfront_deduction' && loan.netDisbursedPaise && (
+                        <span className="ml-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                          · Disbursed {formatINR(loan.netDisbursedPaise)}
+                        </span>
+                      )}
                     </div>
                   </div>
 

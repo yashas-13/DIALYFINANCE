@@ -185,25 +185,34 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
           {/* Account Snapshot Card */}
           {activeLoan && selectedBorrower && (
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 grid grid-cols-3 gap-2 text-center text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">Installment Due</span>
-                <span className="block font-extrabold text-sm text-slate-900 dark:text-white tabular-nums mt-0.5">
-                  {formatINR(activeLoan.installmentAmountPaise)}
-                </span>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Installment Due</span>
+                  <span className="block font-extrabold text-sm text-slate-900 dark:text-white tabular-nums mt-0.5">
+                    {formatINR(activeLoan.installmentAmountPaise)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Outstanding Balance</span>
+                  <span className="block font-extrabold text-sm text-rose-600 dark:text-rose-400 tabular-nums mt-0.5">
+                    {formatINR(activeLoan.outstandingPaise)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Frequency</span>
+                  <span className="block font-bold text-xs text-slate-700 dark:text-slate-300 capitalize mt-0.5">
+                    {activeLoan.frequency} EMI
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">Outstanding Balance</span>
-                <span className="block font-extrabold text-sm text-rose-600 dark:text-rose-400 tabular-nums mt-0.5">
-                  {formatINR(activeLoan.outstandingPaise)}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">Frequency</span>
-                <span className="block font-bold text-xs text-slate-700 dark:text-slate-300 capitalize mt-0.5">
-                  {activeLoan.frequency} EMI
-                </span>
-              </div>
+
+              {activeLoan.interestType === 'upfront_deduction' && (
+                <div className="text-[11px] bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-medium py-1 px-2.5 rounded-lg text-center flex items-center justify-between">
+                  <span>Upfront Deduction Contract</span>
+                  <span>Disbursed: {formatINR(activeLoan.netDisbursedPaise ?? (activeLoan.principalPaise - (activeLoan.upfrontDeductionPaise || 0)))}</span>
+                </div>
+              )}
             </div>
           )}
 

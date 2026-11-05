@@ -8,8 +8,8 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, adminUser }) => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('akash');
+  const [password, setPassword] = useState('saanvi');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -37,10 +37,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, adminUser 
       return;
     }
 
-    // Validation logic
-    if (username.trim() === 'admin' && password === 'admin123') {
+    // Validation logic for user requested credentials: username: akash, password: saanvi
+    const cleanUser = username.trim().toLowerCase();
+    if (cleanUser === 'akash' && password === 'saanvi') {
       setAttemptCount(0);
-      onLoginSuccess(adminUser);
+      const updatedAdmin: AdminUser = {
+        ...adminUser,
+        name: 'Akash',
+        username: 'akash',
+        email: 'akash@dailycollect.com',
+        lastLogin: new Date().toISOString(),
+      };
+      onLoginSuccess(updatedAdmin);
     } else {
       const nextCount = attemptCount + 1;
       setAttemptCount(nextCount);
@@ -119,7 +127,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, adminUser 
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="akash"
                 required
                 className="w-full h-11 pl-10 pr-3.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
               />
@@ -183,17 +191,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, adminUser 
 
         {/* Demo Quick Login Helper */}
         <div className="mt-5 pt-4 border-t border-slate-700/60 text-center">
-          <p className="text-[11px] text-slate-400 mb-2">Demo Credentials: admin / admin123</p>
+          <p className="text-[11px] text-slate-400 mb-2">Operator Credentials: <strong className="text-emerald-400">akash</strong> / <strong className="text-emerald-400">saanvi</strong></p>
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             <button
               type="button"
               onClick={() => {
-                setUsername('admin');
-                setPassword('admin123');
+                setUsername('akash');
+                setPassword('saanvi');
                 setIsLocked(false);
                 setErrorMessage(null);
               }}
-              className="px-2.5 py-1 rounded-md bg-slate-700/80 hover:bg-slate-700 text-[11px] text-slate-300 font-medium transition-colors"
+              className="px-2.5 py-1 rounded-md bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-[11px] text-emerald-300 font-semibold transition-colors"
             >
               Fill Credentials
             </button>

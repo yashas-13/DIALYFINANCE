@@ -307,10 +307,22 @@ export const BorrowerDetailModal: React.FC<BorrowerDetailModalProps> = ({
                         <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
                           {loan.status}
                         </span>
+                        {loan.interestType === 'upfront_deduction' && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300">
+                            Upfront Deduction
+                          </span>
+                        )}
                       </div>
-                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white tabular-nums">
-                        {formatINR(loan.principalPaise)}
-                      </span>
+                      <div className="text-right">
+                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white tabular-nums block">
+                          {formatINR(loan.sanctionedAmountPaise || loan.principalPaise)}
+                        </span>
+                        {loan.interestType === 'upfront_deduction' && loan.netDisbursedPaise && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">
+                            Disbursed: {formatINR(loan.netDisbursedPaise)}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[11px]">

@@ -32,11 +32,18 @@ import { ExpensesView } from './components/ExpensesView';
 import { NotificationsModal } from './components/NotificationsModal';
 import { AdminSettingsView } from './components/AdminSettingsView';
 import { AuditLogView } from './components/AuditLogView';
+import { IOSPushBanner } from './components/IOSPushBanner';
+import { IOSPushNotificationModal } from './components/IOSPushNotificationModal';
+import { PushService } from './services/pushService';
+import { FeatureInstructionsModal, InstructionTopicId } from './components/FeatureInstructionsModal';
 
 export default function App() {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  // Authentication state - Starts on Login screen requiring username 'akash' and password 'saanvi'
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminUser, setAdminUser] = useState<AdminUser>(CollectionStorage.getAdmin());
+  const [showIOSPushModal, setShowIOSPushModal] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [instructionTopic, setInstructionTopic] = useState<InstructionTopicId>('overview');
 
   // Dark Mode
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -94,6 +101,20 @@ export default function App() {
 
   useEffect(() => {
     refreshData();
+    // Register Service Worker for iOS PWA Web Push
+    PushService.registerServiceWorker().catch(() => {});
+
+    // Listen for custom event triggered by clicking in-app or system notification
+    const handlePushNav = (e: any) => {
+      const targetTab = e.detail?.tab;
+      if (targetTab) {
+        setActiveTab(targetTab as ActiveTab);
+      }
+    };
+    window.addEventListener('daily_collect_notification_nav', handlePushNav);
+    return () => {
+      window.removeEventListener('daily_collect_notification_nav', handlePushNav);
+    };
   }, []);
 
   // Sync details if underlying records update
@@ -195,6 +216,18 @@ export default function App() {
     refreshData();
   };
 
+  // Reset to Clean Slate (Clear all demo data)
+  const handleResetToClean = () => {
+    CollectionStorage.resetToClean();
+    refreshData();
+  };
+
+  // Open Feature Guide
+  const handleOpenInstructions = (topic: InstructionTopicId = 'overview') => {
+    setInstructionTopic(topic);
+    setShowInstructionsModal(true);
+  };
+
   // Export JSON
   const handleExportJSON = () => {
     const jsonStr = CollectionStorage.exportDatabaseJSON();
@@ -232,6 +265,8 @@ export default function App() {
         onLogout={handleLogout}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        onOpenIOSPush={() => setShowIOSPushModal(true)}
+        onOpenInstructions={() => handleOpenInstructions('overview')}
         title={
           activeTab === 'dashboard'
             ? 'Daily Collection'
@@ -275,6 +310,8 @@ export default function App() {
             onViewOverdueClick={() => setActiveTab('pending')}
             onViewReceiptClick={(payment) => setActiveReceipt(payment)}
             onNavigateTab={(tab) => setActiveTab(tab)}
+            onOpenIOSPush={() => setShowIOSPushModal(true)}
+            onOpenInstructions={(topic) => handleOpenInstructions(topic || 'overview')}
           />
         )}
 
@@ -363,9 +400,12 @@ export default function App() {
             admin={adminUser}
             onUpdateSettings={handleUpdateSettings}
             onResetDemoData={handleResetDemo}
+            onResetToClean={handleResetToClean}
             onExportJSON={handleExportJSON}
             onImportJSON={handleImportJSON}
             onNavigateTab={(tab) => setActiveTab(tab)}
+            onOpenIOSPush={() => setShowIOSPushModal(true)}
+            onOpenInstructions={() => handleOpenInstructions('backup_security')}
           />
         )}
 
@@ -505,6 +545,37 @@ export default function App() {
               if (b) setSelectedBorrowerDetail(b);
             }
           }}
+        />
+      )}
+
+      {/* iOS Apple Push Banner Simulator (for instant desktop/browser audio & visual verification) */}
+      <IOSPushBanner onNavigateTab={(tab) => setActiveTab(tab as ActiveTab)} />
+
+      {/* iOS Push Notification Control Center & Trigger Modal */}
+      {showIOSPushModal && (
+        <IOSPushNotificationModal
+          onClose={() => setShowIOSPushModal(false)}
+          onNavigateTab={(tab) => setActiveTab(tab as ActiveTab)}
+        />
+      )}
+
+      {/* Feature Instructions & User Guide Modal */}
+      {showInstructionsModal && (
+        <FeatureInstructionsModal
+          initialTopic={instructionTopic}
+          onClose={() => setShowInstructionsModal(false)}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+          onOpenCreateLoan={() => {
+            setLoanTargetBorrowerId(undefined);
+            setShowCreateLoanModal(true);
+          }}
+          onOpenAddBorrower={() => setShowAddBorrowerModal(true)}
+          onOpenRecordPayment={() => {
+            setPaymentTargetLoanId(undefined);
+            setPaymentTargetBorrowerId(undefined);
+            setShowRecordPaymentModal(true);
+          }}
+          onOpenIOSPush={() => setShowIOSPushModal(true)}
         />
       )}
     </div>

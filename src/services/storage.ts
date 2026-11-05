@@ -8,6 +8,8 @@ import {
   AuditLogItem,
   BusinessSettings,
   AdminUser,
+  InterestType,
+  RepaymentFrequency,
 } from '../types';
 import { calculateLoan } from '../utils/finance';
 
@@ -20,7 +22,7 @@ const STORAGE_KEYS = {
   AUDIT_LOGS: 'dca_audit_logs_v1',
   SETTINGS: 'dca_settings_v1',
   ADMIN: 'dca_admin_v1',
-  INITIALIZED: 'dca_initialized_v1',
+  INITIALIZED: 'dca_initialized_v2',
 };
 
 const DEFAULT_SETTINGS: BusinessSettings = {
@@ -38,9 +40,9 @@ const DEFAULT_SETTINGS: BusinessSettings = {
 
 const DEFAULT_ADMIN: AdminUser = {
   id: 'adm_01',
-  name: 'Rajesh Sharma',
-  email: 'admin@apexcollection.in',
-  username: 'admin',
+  name: 'Akash',
+  email: 'akash@dailycollect.com',
+  username: 'akash',
   role: 'super_admin',
   status: 'active',
   lastLogin: new Date().toISOString(),
@@ -380,6 +382,43 @@ function generateSeedData() {
       createdAt: '2026-08-20',
       installments: [],
     },
+    {
+      id: 'ln_207',
+      loanId: 'LN-2026-007',
+      borrowerId: 'br_107',
+      borrowerName: 'Venkatesh Prasad',
+      borrowerPhone: '+91 96112 34987',
+      principalPaise: 1000000, // ₹10,000 Sanctioned
+      sanctionedAmountPaise: 1000000, // ₹10,000
+      upfrontDeductionPaise: 200000, // ₹2,000 Deducted Upfront
+      netDisbursedPaise: 800000, // ₹8,000 Net Cash Given
+      interestType: 'upfront_deduction',
+      interestRatePercent: 20,
+      frequency: 'weekly',
+      durationValue: 10, // 10 weeks
+      installmentAmountPaise: 100000, // ₹1,000 / week
+      totalInstallments: 10,
+      startDate: '2026-10-15',
+      dueDate: '2026-12-24',
+      firstInstallmentDate: '2026-10-22',
+      collectionDay: 'Thursday',
+      totalInterestPaise: 200000,
+      totalPayablePaise: 1000000, // ₹10,000 Total Repayable
+      collectedPaise: 300000, // ₹3,000 collected (3 installments)
+      outstandingPaise: 700000, // ₹7,000 outstanding
+      status: 'active',
+      notes: 'Upfront deduction discounting loan. Disbursed ₹8,000 net cash; 10 weekly collections of ₹1,000.',
+      createdAt: '2026-10-15',
+      installments: Array.from({ length: 10 }, (_, i) => ({
+        id: `inst_207_${i + 1}`,
+        loanId: 'ln_207',
+        installmentNumber: i + 1,
+        dueDate: todayStr,
+        amountDuePaise: 100000,
+        amountPaidPaise: i < 3 ? 100000 : 0,
+        status: i < 3 ? 'paid' : ('pending' as const),
+      })),
+    },
   ];
 
   // Seed payments including today's ₹18,500 total!
@@ -602,8 +641,39 @@ export class CollectionStorage {
   public static initialize(): void {
     const initialized = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
     if (!initialized) {
-      this.resetToDemo();
+      this.resetToClean();
     }
+  }
+
+  public static resetToClean(): void {
+    const cleanAdmin = DEFAULT_ADMIN;
+    this.set(STORAGE_KEYS.BORROWERS, []);
+    this.set(STORAGE_KEYS.LOANS, []);
+    this.set(STORAGE_KEYS.PAYMENTS, []);
+    this.set(STORAGE_KEYS.EXPENSES, []);
+    this.set(STORAGE_KEYS.NOTIFICATIONS, [
+      {
+        id: `notif_${Date.now()}`,
+        type: 'system',
+        title: 'Fresh Database Initialized',
+        message: 'Welcome Akash. Clean operational slate ready for live daily collections.',
+        read: false,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        linkTab: 'dashboard',
+      },
+    ]);
+    this.set(STORAGE_KEYS.AUDIT_LOGS, [
+      {
+        id: `aud_${Date.now()}`,
+        event: 'system_initialized',
+        adminName: 'Akash',
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        details: 'Clean slate ledger initialized. Seeded demo data cleared.',
+      },
+    ]);
+    this.set(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+    this.set(STORAGE_KEYS.ADMIN, cleanAdmin);
+    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
   }
 
   public static resetToDemo(): void {
@@ -615,7 +685,7 @@ export class CollectionStorage {
     this.set(STORAGE_KEYS.NOTIFICATIONS, seed.notifications);
     this.set(STORAGE_KEYS.AUDIT_LOGS, seed.auditLogs);
     this.set(STORAGE_KEYS.SETTINGS, seed.settings);
-    this.set(STORAGE_KEYS.ADMIN, seed.admin);
+    this.set(STORAGE_KEYS.ADMIN, { ...seed.admin, name: 'Akash', username: 'akash', email: 'akash@dailycollect.com' });
     localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
   }
 
@@ -721,12 +791,13 @@ export class CollectionStorage {
     input: {
       borrowerId: string;
       principalPaise: number;
-      interestType: 'flat' | 'reducing';
+      interestType: InterestType;
       interestRatePercent: number;
-      frequency: 'daily' | 'weekly' | 'monthly';
+      frequency: RepaymentFrequency;
       durationValue: number;
       startDate: string;
       collectionDay?: string;
+      customDeductionPaise?: number;
       notes?: string;
     },
     adminName = 'Admin'
@@ -747,6 +818,7 @@ export class CollectionStorage {
       durationValue: input.durationValue,
       frequency: input.frequency,
       startDate: input.startDate,
+      customDeductionPaise: input.customDeductionPaise,
     });
 
     const installments: InstallmentItem[] = calculation.schedule.map((s) => ({
@@ -766,6 +838,9 @@ export class CollectionStorage {
       borrowerName: borrower.fullName,
       borrowerPhone: borrower.mobile,
       principalPaise: input.principalPaise,
+      sanctionedAmountPaise: calculation.sanctionedAmountPaise,
+      upfrontDeductionPaise: calculation.upfrontDeductionPaise,
+      netDisbursedPaise: calculation.netDisbursedPaise,
       interestType: input.interestType,
       interestRatePercent: input.interestRatePercent,
       frequency: input.frequency,
@@ -795,18 +870,27 @@ export class CollectionStorage {
     borrower.activeLoansCount += 1;
     this.set(STORAGE_KEYS.BORROWERS, borrowers);
 
+    const auditDetail = input.interestType === 'upfront_deduction'
+      ? `Disbursed Upfront Deduction Loan ${loanIdStr}: Sanctioned ₹${input.principalPaise / 100}, Deducted ₹${calculation.upfrontDeductionPaise / 100}, Disbursed ₹${calculation.netDisbursedPaise / 100} to ${borrower.fullName}.`
+      : `Disbursed loan ${loanIdStr} of ₹${input.principalPaise / 100} to ${borrower.fullName}.`;
+
     this.logAudit({
       event: 'loan_created',
       adminName,
       entityId: loanIdStr,
-      details: `Disbursed loan ${loanIdStr} of ${input.principalPaise / 100} INR to ${borrower.fullName}.`,
-      afterState: JSON.stringify({ principal: input.principalPaise, payable: calculation.totalPayablePaise }),
+      details: auditDetail,
+      afterState: JSON.stringify({
+        sanctioned: calculation.sanctionedAmountPaise,
+        deduction: calculation.upfrontDeductionPaise,
+        disbursed: calculation.netDisbursedPaise,
+        payable: calculation.totalPayablePaise,
+      }),
     });
 
     this.addNotification({
       type: 'new_loan',
       title: 'Loan Disbursed',
-      message: `${loanIdStr} created for ${borrower.fullName} with ${calculation.totalInstallments} installments.`,
+      message: `${loanIdStr} (${input.interestType === 'upfront_deduction' ? 'Upfront Deduction' : input.interestType}) created for ${borrower.fullName} with ${calculation.totalInstallments} installments.`,
       linkTab: 'loans',
       linkId: id,
     });

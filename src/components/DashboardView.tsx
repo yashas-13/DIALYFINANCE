@@ -13,6 +13,10 @@ import {
   Clock,
   ShieldCheck,
   ChevronRight,
+  Radio,
+  Smartphone,
+  BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { Borrower, Loan, Payment, AdminUser } from '../types';
 import { formatINR, formatCompactINR } from '../utils/finance';
@@ -29,6 +33,8 @@ interface DashboardViewProps {
   onViewOverdueClick: () => void;
   onViewReceiptClick: (payment: Payment) => void;
   onNavigateTab: (tab: any) => void;
+  onOpenIOSPush?: () => void;
+  onOpenInstructions?: (topic?: any) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -43,6 +49,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onViewOverdueClick,
   onViewReceiptClick,
   onNavigateTab,
+  onOpenIOSPush,
+  onOpenInstructions,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -100,7 +108,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Quick Thumb CTA for Field Collection */}
-        <div className="flex items-center gap-2 pt-2 sm:pt-0">
+        <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
+          {onOpenInstructions && (
+            <button
+              onClick={() => onOpenInstructions('overview')}
+              className="w-full sm:w-auto h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <BookOpen className="w-4 h-4 text-emerald-400" />
+              <span>User Guide</span>
+            </button>
+          )}
+
           <button
             onClick={onRecordPaymentClick}
             className="w-full sm:w-auto h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-950/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
@@ -110,6 +128,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Clean Slate Onboarding Card (Displays when database is empty) */}
+      {borrowers.length === 0 && (
+        <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 text-white p-4.5 sm:p-5 rounded-2xl border border-emerald-800/60 shadow-lg">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0 text-emerald-400">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-white">Clean Operational Slate Active</h2>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    Ready for Live Work
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
+                  Demo records have been cleared. You can now register real customers, calculate Upfront Deduction or Flat EMI loans, and issue official payment receipts.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <button
+                onClick={onAddBorrowerClick}
+                className="flex-1 md:flex-none min-h-[44px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Add First Borrower</span>
+              </button>
+              {onOpenInstructions && (
+                <button
+                  onClick={() => onOpenInstructions('upfront_loans')}
+                  className="flex-1 md:flex-none min-h-[44px] px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
+                >
+                  <BookOpen className="w-4 h-4 text-emerald-400" />
+                  <span>Upfront Loan Guide</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -438,6 +499,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </button>
+
+            {onOpenInstructions && (
+              <button
+                onClick={() => onOpenInstructions('overview')}
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Feature Guide & Manual</span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  9 Modules →
+                </span>
+              </button>
+            )}
+
+            {onOpenIOSPush && (
+              <button
+                onClick={onOpenIOSPush}
+                className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/80 dark:border-emerald-800/80 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Radio className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+                  <span>iOS Push Triggers & APNs</span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                  Trigger
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>

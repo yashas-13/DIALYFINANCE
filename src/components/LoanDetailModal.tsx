@@ -71,11 +71,15 @@ export const LoanDetailModal: React.FC<LoanDetailModalProps> = ({
   };
 
   const handleDownloadStatement = () => {
+    const isUpfront = loan.interestType === 'upfront_deduction';
     const content = `LOAN ACCOUNT STATEMENT\n` +
       `Loan ID: ${loan.loanId}\n` +
       `Borrower: ${loan.borrowerName} (${loan.borrowerPhone})\n` +
-      `Principal: ${formatINR(loan.principalPaise)}\n` +
-      `Total Payable: ${formatINR(loan.totalPayablePaise)}\n` +
+      `Lending Model: ${isUpfront ? 'Upfront Deduction (Disburse net cash, repay face value)' : loan.interestType.toUpperCase()}\n` +
+      (isUpfront ? `Sanctioned Face Value: ${formatINR(loan.sanctionedAmountPaise || loan.principalPaise)}\n` : `Principal: ${formatINR(loan.principalPaise)}\n`) +
+      (isUpfront ? `Upfront Deduction: -${formatINR(loan.upfrontDeductionPaise || loan.totalInterestPaise)}\n` : '') +
+      (isUpfront ? `Net Cash Disbursed: ${formatINR(loan.netDisbursedPaise ?? (loan.principalPaise - (loan.upfrontDeductionPaise || 0)))}\n` : '') +
+      `Total Repayable: ${formatINR(loan.totalPayablePaise)}\n` +
       `Collected: ${formatINR(loan.collectedPaise)}\n` +
       `Outstanding Balance: ${formatINR(loan.outstandingPaise)}\n` +
       `Status: ${loan.status.toUpperCase()}\n` +
@@ -116,6 +120,11 @@ export const LoanDetailModal: React.FC<LoanDetailModalProps> = ({
               >
                 {loan.status}
               </span>
+              {loan.interestType === 'upfront_deduction' && (
+                <span className="text-[10px] bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-bold">
+                  Upfront Deduction
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Borrower: <span className="font-semibold text-slate-800 dark:text-slate-200">{loan.borrowerName}</span> ({loan.borrowerPhone})
@@ -144,11 +153,21 @@ export const LoanDetailModal: React.FC<LoanDetailModalProps> = ({
         {/* Financial KPI Strip */}
         <div className="bg-slate-50 dark:bg-slate-800/60 p-4 border-b border-slate-200 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
           <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Principal</div>
-            <div className="text-sm font-extrabold text-slate-900 dark:text-white tabular-nums mt-0.5">
-              {formatINR(loan.principalPaise)}
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">
+              {loan.interestType === 'upfront_deduction' ? 'Sanctioned Face' : 'Principal'}
             </div>
-            <div className="text-[10px] text-slate-500 capitalize">{loan.interestType} {loan.interestRatePercent}%</div>
+            <div className="text-sm font-extrabold text-slate-900 dark:text-white tabular-nums mt-0.5">
+              {formatINR(loan.sanctionedAmountPaise || loan.principalPaise)}
+            </div>
+            <div className="text-[10px] text-slate-500 capitalize">
+              {loan.interestType === 'upfront_deduction' ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  Disbursed {formatINR(loan.netDisbursedPaise ?? (loan.principalPaise - (loan.upfrontDeductionPaise || 0)))}
+                </span>
+              ) : (
+                `${loan.interestType} ${loan.interestRatePercent}%`
+              )}
+            </div>
           </div>
 
           <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">

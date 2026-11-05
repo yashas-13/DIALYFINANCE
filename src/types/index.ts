@@ -2,7 +2,7 @@ export type LoanStatus = 'active' | 'completed' | 'defaulted' | 'closed';
 export type PaymentStatus = 'confirmed' | 'reversed';
 export type PaymentMethod = 'cash' | 'upi' | 'bank_transfer' | 'other';
 export type RepaymentFrequency = 'daily' | 'weekly' | 'monthly';
-export type InterestType = 'flat' | 'reducing';
+export type InterestType = 'flat' | 'reducing' | 'upfront_deduction';
 export type InstallmentStatus = 'pending' | 'paid' | 'partial' | 'overdue';
 
 export interface Address {
@@ -55,6 +55,9 @@ export interface Loan {
   borrowerName: string;
   borrowerPhone: string;
   principalPaise: number;
+  sanctionedAmountPaise?: number;
+  upfrontDeductionPaise?: number;
+  netDisbursedPaise?: number;
   interestType: InterestType;
   interestRatePercent: number;
   frequency: RepaymentFrequency;

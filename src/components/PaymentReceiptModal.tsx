@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Payment, BusinessSettings } from '../types';
 import { formatINR } from '../utils/finance';
+import { CollectionStorage } from '../services/storage';
 
 interface PaymentReceiptModalProps {
   payment: Payment;
@@ -26,12 +27,20 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
   onViewLoan,
 }) => {
   const isReversed = payment.status === 'reversed';
+  const loan = CollectionStorage.getLoans().find(
+    (l) => l.id === payment.loanId || l.loanId === payment.loanId
+  );
+  const isUpfront = loan?.interestType === 'upfront_deduction';
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleShareWhatsApp = () => {
+    const loanExtra = isUpfront && loan
+      ? `Loan Structure: Sanctioned ${formatINR(loan.sanctionedAmountPaise || loan.principalPaise)} | Disbursed ${formatINR(loan.netDisbursedPaise ?? (loan.principalPaise - (loan.upfrontDeductionPaise || 0)))} | Repayable ${formatINR(loan.totalPayablePaise)}\n`
+      : '';
+
     const text = encodeURIComponent(
       `*PAYMENT CONFIRMATION RECEIPT*\n` +
       `Business: ${settings.businessName}\n` +
@@ -39,6 +48,7 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
       `Date: ${payment.paymentDate}\n` +
       `Borrower: ${payment.borrowerName} (${payment.borrowerId})\n` +
       `Loan ID: ${payment.loanId}\n` +
+      loanExtra +
       `Amount Paid: ${formatINR(payment.amountPaise)}\n` +
       `Payment Mode: ${payment.paymentMethod.toUpperCase()}\n` +
       (payment.referenceNumber ? `Ref: ${payment.referenceNumber}\n` : '') +
@@ -52,6 +62,13 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
   };
 
   const handleDownload = () => {
+    const loanExtra = isUpfront && loan
+      ? `Lending Model: UPFRONT DEDUCTION\n` +
+        `Sanctioned Face Value: ${formatINR(loan.sanctionedAmountPaise || loan.principalPaise)}\n` +
+        `Net Cash Disbursed:    ${formatINR(loan.netDisbursedPaise ?? (loan.principalPaise - (loan.upfrontDeductionPaise || 0)))}\n` +
+        `Total Repayable:       ${formatINR(loan.totalPayablePaise)}\n`
+      : '';
+
     const receiptText =
       `====================================================\n` +
       `         ${settings.businessName.toUpperCase()}\n` +
@@ -67,6 +84,7 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
       `Borrower ID:    ${payment.borrowerId}\n` +
       `Borrower Phone: ${payment.borrowerPhone}\n` +
       `Loan Account:   ${payment.loanId}\n` +
+      loanExtra +
       `----------------------------------------------------\n` +
       `AMOUNT RECEIVED: ${formatINR(payment.amountPaise)}\n` +
       `Payment Mode:    ${payment.paymentMethod.toUpperCase()}\n` +
@@ -163,6 +181,36 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{payment.loanId}</span>
               </div>
             </div>
+
+            {/* Upfront Deduction Loan Info */}
+            {isUpfront && loan && (
+              <div className="py-2 px-3 my-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 text-[11px] space-y-1">
+                <div className="flex items-center justify-between text-purple-800 dark:text-purple-300 font-bold uppercase text-[9px]">
+                  <span>Upfront Deduction Loan</span>
+                  <span>Face Value Repayment</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 pt-1 text-center">
+                  <div>
+                    <span className="text-[9px] text-slate-400 block">Sanctioned</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white text-xs tabular-nums">
+                      {formatINR(loan.sanctionedAmountPaise || loan.principalPaise)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 block font-semibold">Disbursed</span>
+                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs tabular-nums">
+                      {formatINR(loan.netDisbursedPaise ?? (loan.principalPaise - (loan.upfrontDeductionPaise || 0)))}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 block">Repayable</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white text-xs tabular-nums">
+                      {formatINR(loan.totalPayablePaise)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Main Amount Box */}
             <div className="my-4 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 text-center">

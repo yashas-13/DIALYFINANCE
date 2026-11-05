@@ -83,3 +83,33 @@ test('validatePayment strictly enforces positive amounts and prevents overpaymen
 test('date math accurately advances days', () => {
   assert.equal(addDays('2026-11-01', 5), '2026-11-06');
 });
+
+test('upfront deduction loan matches user example: ₹10k loan, deduct ₹2k, disburse ₹8k, 10 weekly ₹1k installments repaying ₹10k', () => {
+  const result = calculateLoan({
+    principalPaise: 1000000, // ₹10,000 sanctioned
+    interestType: 'upfront_deduction',
+    annualInterestRatePercent: 20,
+    customDeductionPaise: 200000, // ₹2,000 upfront deduction
+    durationValue: 10, // 10 weeks
+    frequency: 'weekly',
+    startDate: '2026-11-03',
+  });
+
+  assert.equal(result.sanctionedAmountPaise, 1000000); // ₹10,000
+  assert.equal(result.upfrontDeductionPaise, 200000); // ₹2,000 deducted upfront
+  assert.equal(result.netDisbursedPaise, 800000); // ₹8,000 net cash given
+  assert.equal(result.totalPayablePaise, 1000000); // ₹10,000 total repayable
+  assert.equal(result.totalInstallments, 10);
+  assert.equal(result.installmentAmountPaise, 100000); // ₹1,000 weekly installment
+  assert.equal(result.schedule.length, 10);
+
+  // Each installment is ₹1,000
+  result.schedule.forEach((inst, index) => {
+    assert.equal(inst.installmentAmountPaise, 100000);
+    assert.equal(inst.principalPaise, 100000);
+    assert.equal(inst.interestPaise, 0); // interest was deducted upfront
+  });
+
+  // Final remaining balance reaches 0
+  assert.equal(result.schedule[9].remainingBalancePaise, 0);
+});

@@ -264,6 +264,11 @@ export const DailyCollectionView: React.FC<DailyCollectionViewProps> = ({
                       <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
                         {loan.loanId}
                       </span>
+                      {loan.interestType === 'upfront_deduction' && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300">
+                          Upfront Cut
+                        </span>
+                      )}
                       <span
                         className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                           isPaid
