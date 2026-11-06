@@ -124,20 +124,21 @@ const TOPIC_GUIDES: TopicGuide[] = [
       },
       {
         title: 'Step 3: Choose Frequency & Installments',
-        desc: 'Select repayment frequency (e.g. Weekly for 10 weeks). Each installment is automatically calculated at exactly ₹1,000 per week.',
+        desc: 'Select repayment frequency (e.g. Weekly for 10 weeks or Daily for 100 days). For both Daily and Weekly loans, the 1st collection due date automatically starts on the NEXT DAY (tomorrow). Weekly loans then recur every 7 days on that same weekday.',
       },
       {
         title: 'Step 4: Verify Transparent Figures Before Disbursing',
-        desc: 'The summary displays Sanctioned: ₹10,000, Upfront Deducted: ₹2,000, Net Cash Handed to Borrower: ₹8,000, and Total Repayable: ₹10,000.',
+        desc: 'The summary displays Sanctioned: ₹10,000, Upfront Deducted: ₹2,000, Net Cash Handed to Borrower: ₹8,000, and Total Repayable: ₹10,000. It also shows a clear sequence preview of Installment #1 (Next Day), #2, and Maturity.',
       },
     ],
     highlightBox: {
       title: 'Real-World Example Breakdown',
       content:
-        'Sanctioned Principal = ₹10,000\nUpfront 20% Deducted = ₹2,000\nNet Cash Handed Over = ₹8,000\nBorrower Repays = 10 weekly collections of ₹1,000 (Total ₹10,000)',
-      formula: 'Net Disbursed = Sanctioned - Upfront Deduction | Installment = Sanctioned ÷ Total Weeks',
+        'Sanctioned Principal = ₹10,000\nUpfront 20% Deducted = ₹2,000\nNet Cash Handed Over = ₹8,000\n1st Due Date = Tomorrow (Next Day)\nBorrower Repays = 10 weekly collections of ₹1,000 (Total ₹10,000)',
+      formula: 'Net Disbursed = Sanctioned - Upfront Deduction | Installment #1 = Tomorrow (Next Day)',
     },
     tips: [
+      'Next-Day Collection Rule: When a loan is disbursed today (Daily or Weekly), installment #1 is automatically due tomorrow (the next day). Weekly loans repeat every 7 days on that same weekday.',
       'Receipts and borrower profiles transparently show both the net cash handed over and the sanctioned face value.',
       'Borrowers can pay via UPI or Cash. Early prepayments automatically discount pending schedule entries.',
       'Standard Flat Interest and Reducing Balance models are also available in the same loan form.',

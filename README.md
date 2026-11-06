@@ -179,8 +179,13 @@ The application natively supports 3 microfinance lending structures:
 - **Net Cash Handed to Borrower**: ₹8,000
 - **Total Repayable**: ₹10,000 across 10 weekly collections of ₹1,000.
 - **Formula**: `Net Disbursed = Sanctioned - Upfront Deduction`
+- **Next-Day Collection Schedule**: If disbursed today, Installment #1 is automatically scheduled for the **next day** (tomorrow). For weekly loans, subsequent installments recur every 7 days on that same weekday (*e.g., disbursed Friday $\rightarrow$ 1st due Saturday [next day] $\rightarrow$ 2nd due Saturday [+7d] $\rightarrow$ 3rd due Saturday [+14d]*).
 
-### 2. Flat Rate Interest
+### 2. Daily & Weekly Automated Due Date Calculation
+- **Daily Repayment Loans**: Disbursed on Date $T$ $\rightarrow$ Installment #1 is due on $T+1$ (the next day), Installment #2 on $T+2$, etc.
+- **Weekly Repayment Loans**: Disbursed on Date $T$ $\rightarrow$ Installment #1 is due on $T+1$ (the next day), Installment #2 on $T+8$ (+7 days), Installment #3 on $T+15$ (+14 days), recurring on that assigned weekday.
+- **Auto-Assigned Collection Slot**: The loan form automatically determines and sets the collection slot (*e.g., "Every Saturday"*).
+- **Manual Customization**: Operators can inspect the 3-step sequence preview and adjust the 1st due date if needed.
 - Interest is calculated across the entire tenure up-front:
   `Total Interest = Principal × (Annual Rate / 100) × (Tenure in Years)`
 - Installments are split evenly across days, weeks, or months.

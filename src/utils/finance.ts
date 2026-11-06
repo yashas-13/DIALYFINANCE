@@ -5,6 +5,7 @@ export interface LoanCalculationInput {
   durationValue: number; // e.g. 100 days, 10 weeks, 12 months
   frequency: 'daily' | 'weekly' | 'monthly';
   startDate: string; // YYYY-MM-DD
+  firstInstallmentDate?: string; // YYYY-MM-DD (defaults to next day for daily & weekly)
   customDeductionPaise?: number; // optional manual override
 }
 
@@ -26,6 +27,7 @@ export interface LoanCalculationResult {
   totalPayablePaise: number;
   totalInstallments: number;
   installmentAmountPaise: number;
+  firstInstallmentDate: string;
   maturityDate: string;
   schedule: InstallmentScheduleItem[];
 }
@@ -106,16 +108,77 @@ export function addMonths(dateStr: string, months: number): string {
 }
 
 /**
- * Calculate next installment due date
+ * Automatically determine the first installment collection due date.
+ * For daily and weekly loans, it automatically takes the NEXT DAY (startDate + 1 day).
+ * For monthly loans, it defaults to 1 month after start date.
  */
-export function getNextDueDate(startDate: string, installmentIndex: number, frequency: 'daily' | 'weekly' | 'monthly'): string {
+export function calculateFirstDueDate(
+  startDate: string,
+  frequency: 'daily' | 'weekly' | 'monthly'
+): string {
+  if (frequency === 'daily' || frequency === 'weekly') {
+    return addDays(startDate, 1);
+  }
+  return addMonths(startDate, 1);
+}
+
+/**
+ * Get weekday name (e.g., "Saturday", "Sunday") from date string
+ */
+export function getWeekdayName(dateStr: string): string {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'long' });
+  } catch {
+    return 'Day';
+  }
+}
+
+/**
+ * Compute the natural collection day or slot description based on frequency and first due date
+ */
+export function getDefaultCollectionSlot(
+  startDate: string,
+  frequency: 'daily' | 'weekly' | 'monthly',
+  firstDueDate?: string
+): string {
+  const first = firstDueDate || calculateFirstDueDate(startDate, frequency);
   if (frequency === 'daily') {
-    return addDays(startDate, installmentIndex);
+    return 'Everyday (Daily)';
   }
   if (frequency === 'weekly') {
-    return addWeeks(startDate, installmentIndex);
+    const weekday = getWeekdayName(first);
+    return `Every ${weekday}`;
   }
-  return addMonths(startDate, installmentIndex);
+  const dayOfMonth = new Date(first + 'T00:00:00').getDate();
+  return `${dayOfMonth}th of each month`;
+}
+
+/**
+ * Calculate due date for installment #installmentIndex (1-indexed).
+ * If customFirstDueDate is provided, it anchors installment #1 to that date.
+ * For daily: firstDueDate + (i - 1) days (installment 1 = next day, installment 2 = next day + 1 day).
+ * For weekly: firstDueDate + (i - 1) * 7 days (installment 1 = next day, installment 2 = next day + 7 days on same weekday).
+ * For monthly: firstDueDate + (i - 1) months.
+ */
+export function getNextDueDate(
+  startDate: string,
+  installmentIndex: number,
+  frequency: 'daily' | 'weekly' | 'monthly',
+  customFirstDueDate?: string
+): string {
+  const firstDueDate = customFirstDueDate || calculateFirstDueDate(startDate, frequency);
+  const offset = installmentIndex - 1;
+  if (offset <= 0) {
+    return firstDueDate;
+  }
+  if (frequency === 'daily') {
+    return addDays(firstDueDate, offset);
+  }
+  if (frequency === 'weekly') {
+    return addDays(firstDueDate, offset * 7);
+  }
+  return addMonths(firstDueDate, offset);
 }
 
 /**
@@ -129,7 +192,10 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
     durationValue,
     frequency,
     startDate,
+    firstInstallmentDate,
   } = input;
+
+  const firstDueDate = firstInstallmentDate || calculateFirstDueDate(startDate, frequency);
 
   if (principalPaise <= 0 || durationValue <= 0) {
     return {
@@ -141,6 +207,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
       totalPayablePaise: 0,
       totalInstallments: 0,
       installmentAmountPaise: 0,
+      firstInstallmentDate: firstDueDate,
       maturityDate: startDate,
       schedule: [],
     };
@@ -179,7 +246,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
 
     const netDisbursedPaise = Math.max(0, sanctionedAmountPaise - upfrontDeductionPaise);
     const totalPayablePaise = sanctionedAmountPaise;
-    const totalInterestPaise = upfrontDeductionPaise;
+    totalInterestPaise = upfrontDeductionPaise;
 
     installmentAmountPaise = Math.round(totalPayablePaise / totalInstallments);
 
@@ -187,7 +254,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
     let accumulatedPayable = 0;
 
     for (let i = 1; i <= totalInstallments; i++) {
-      const dueDate = getNextDueDate(startDate, i, frequency);
+      const dueDate = getNextDueDate(startDate, i, frequency, firstDueDate);
       let thisInstallment = installmentAmountPaise;
 
       if (i === totalInstallments) {
@@ -208,7 +275,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
       });
     }
 
-    const maturityDate = schedule[schedule.length - 1]?.dueDate || startDate;
+    const maturityDate = schedule[schedule.length - 1]?.dueDate || firstDueDate;
 
     return {
       principalPaise,
@@ -219,6 +286,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
       totalPayablePaise,
       totalInstallments,
       installmentAmountPaise,
+      firstInstallmentDate: firstDueDate,
       maturityDate,
       schedule,
     };
@@ -244,7 +312,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
     let accumulatedPayable = 0;
 
     for (let i = 1; i <= totalInstallments; i++) {
-      const dueDate = getNextDueDate(startDate, i, frequency);
+      const dueDate = getNextDueDate(startDate, i, frequency, firstDueDate);
       let thisInstallment = installmentAmountPaise;
 
       // Adjust last installment for any integer rounding delta
@@ -267,7 +335,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
       });
     }
 
-    const maturityDate = schedule[schedule.length - 1]?.dueDate || startDate;
+    const maturityDate = schedule[schedule.length - 1]?.dueDate || firstDueDate;
 
     return {
       principalPaise,
@@ -278,6 +346,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
       totalPayablePaise,
       totalInstallments,
       installmentAmountPaise,
+      firstInstallmentDate: firstDueDate,
       maturityDate,
       schedule,
     };
@@ -304,7 +373,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
     let accumulatedInterest = 0;
 
     for (let i = 1; i <= totalInstallments; i++) {
-      const dueDate = getNextDueDate(startDate, i, frequency);
+      const dueDate = getNextDueDate(startDate, i, frequency, firstDueDate);
       const interestPart = Math.round(balance * periodicRate);
       let principalPart = installmentAmountPaise - interestPart;
       
@@ -328,7 +397,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
 
     totalInterestPaise = accumulatedInterest;
     const totalPayablePaise = principalPaise + totalInterestPaise;
-    const maturityDate = schedule[schedule.length - 1]?.dueDate || startDate;
+    const maturityDate = schedule[schedule.length - 1]?.dueDate || firstDueDate;
 
     return {
       principalPaise,
@@ -339,6 +408,7 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
       totalPayablePaise,
       totalInstallments,
       installmentAmountPaise,
+      firstInstallmentDate: firstDueDate,
       maturityDate,
       schedule,
     };

@@ -8,6 +8,10 @@ import {
   calculateLoan,
   validatePayment,
   addDays,
+  calculateFirstDueDate,
+  getDefaultCollectionSlot,
+  getWeekdayName,
+  getNextDueDate,
 } from './finance.js';
 
 test('rupees and paise conversions are exact integer values', () => {
@@ -24,6 +28,59 @@ test('currency formatting renders correct Indian Rupee signs and compact notatio
   
   assert.equal(formatCompactINR(1850000), '₹18.5k');
   assert.equal(formatCompactINR(124000000), '₹12.4L');
+});
+
+test('daily loan disbursed today automatically takes the next day as 1st installment due date', () => {
+  const startDate = '2026-11-06'; // e.g. Friday
+  const result = calculateLoan({
+    principalPaise: 1000000, // ₹10,000
+    interestType: 'flat',
+    annualInterestRatePercent: 12,
+    durationValue: 10, // 10 days
+    frequency: 'daily',
+    startDate,
+  });
+
+  assert.equal(result.firstInstallmentDate, '2026-11-07'); // Next day
+  assert.equal(result.schedule[0].dueDate, '2026-11-07'); // Next day
+  assert.equal(result.schedule[1].dueDate, '2026-11-08'); // Next day + 1
+  assert.equal(result.schedule[2].dueDate, '2026-11-09');
+  assert.equal(result.schedule[9].dueDate, '2026-11-16');
+  assert.equal(result.maturityDate, '2026-11-16');
+});
+
+test('weekly loan disbursed today automatically takes the next day as 1st installment due date, then recurs every 7 days on that weekday', () => {
+  const startDate = '2026-11-06'; // Friday
+  const result = calculateLoan({
+    principalPaise: 1000000, // ₹10,000
+    interestType: 'upfront_deduction',
+    annualInterestRatePercent: 20,
+    customDeductionPaise: 200000,
+    durationValue: 10, // 10 weeks
+    frequency: 'weekly',
+    startDate,
+  });
+
+  // First installment MUST automatically be next day (Saturday 2026-11-07)
+  assert.equal(result.firstInstallmentDate, '2026-11-07');
+  assert.equal(result.schedule[0].dueDate, '2026-11-07'); // Saturday (next day)
+  assert.equal(getWeekdayName(result.schedule[0].dueDate), 'Saturday');
+
+  // Second installment must be 7 days later on Saturday 2026-11-14
+  assert.equal(result.schedule[1].dueDate, '2026-11-14'); // Saturday (+7 days)
+  assert.equal(getWeekdayName(result.schedule[1].dueDate), 'Saturday');
+
+  // Third installment must be 14 days later on Saturday 2026-11-21
+  assert.equal(result.schedule[2].dueDate, '2026-11-21'); // Saturday (+14 days)
+  assert.equal(getWeekdayName(result.schedule[2].dueDate), 'Saturday');
+
+  // 10th installment (maturity) on Saturday 2027-01-09
+  assert.equal(result.schedule[9].dueDate, '2027-01-09');
+  assert.equal(getWeekdayName(result.schedule[9].dueDate), 'Saturday');
+  assert.equal(result.maturityDate, '2027-01-09');
+
+  // Default collection slot helper should report "Every Saturday"
+  assert.equal(getDefaultCollectionSlot(startDate, 'weekly'), 'Every Saturday');
 });
 
 test('flat interest loan calculation generates accurate schedules and totals', () => {

@@ -11,7 +11,7 @@ import {
   InterestType,
   RepaymentFrequency,
 } from '../types';
-import { calculateLoan } from '../utils/finance';
+import { calculateLoan, calculateFirstDueDate, getDefaultCollectionSlot } from '../utils/finance';
 
 const STORAGE_KEYS = {
   BORROWERS: 'dca_borrowers_v1',
@@ -796,6 +796,7 @@ export class CollectionStorage {
       frequency: RepaymentFrequency;
       durationValue: number;
       startDate: string;
+      firstInstallmentDate?: string;
       collectionDay?: string;
       customDeductionPaise?: number;
       notes?: string;
@@ -818,6 +819,7 @@ export class CollectionStorage {
       durationValue: input.durationValue,
       frequency: input.frequency,
       startDate: input.startDate,
+      firstInstallmentDate: input.firstInstallmentDate,
       customDeductionPaise: input.customDeductionPaise,
     });
 
@@ -830,6 +832,16 @@ export class CollectionStorage {
       amountPaidPaise: 0,
       status: 'pending',
     }));
+
+    const firstInstallmentDate =
+      calculation.firstInstallmentDate ||
+      calculation.schedule[0]?.dueDate ||
+      input.firstInstallmentDate ||
+      calculateFirstDueDate(input.startDate, input.frequency);
+
+    const collectionDay =
+      input.collectionDay ||
+      getDefaultCollectionSlot(input.startDate, input.frequency, firstInstallmentDate);
 
     const newLoan: Loan = {
       id,
@@ -849,8 +861,8 @@ export class CollectionStorage {
       totalInstallments: calculation.totalInstallments,
       startDate: input.startDate,
       dueDate: calculation.maturityDate,
-      firstInstallmentDate: calculation.schedule[0]?.dueDate || input.startDate,
-      collectionDay: input.collectionDay || 'Everyday',
+      firstInstallmentDate,
+      collectionDay,
       totalInterestPaise: calculation.totalInterestPaise,
       totalPayablePaise: calculation.totalPayablePaise,
       collectedPaise: 0,

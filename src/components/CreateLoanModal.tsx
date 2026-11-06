@@ -1,7 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Calculator, Calendar, Check, AlertCircle, IndianRupee } from 'lucide-react';
+import { X, Calculator, Calendar, Check, AlertCircle, IndianRupee, Sparkles, Clock } from 'lucide-react';
 import { Borrower, RepaymentFrequency, InterestType } from '../types';
-import { calculateLoan, formatINR, rupeesToPaise } from '../utils/finance';
+import {
+  calculateLoan,
+  formatINR,
+  rupeesToPaise,
+  calculateFirstDueDate,
+  getDefaultCollectionSlot,
+  getWeekdayName,
+  addDays,
+} from '../utils/finance';
 
 interface CreateLoanModalProps {
   borrowers: Borrower[];
@@ -27,12 +35,24 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
   const [interestRatePercent, setInterestRatePercent] = useState('20');
   const [frequency, setFrequency] = useState<RepaymentFrequency>('weekly');
   const [durationValue, setDurationValue] = useState('10'); // 10 installments
-  const [startDate, setStartDate] = useState(
-    new Date().toISOString().split('T')[0]
+  const todayDate = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(todayDate);
+  // Default first installment is automatically the next day
+  const [firstInstallmentDate, setFirstInstallmentDate] = useState(() =>
+    calculateFirstDueDate(todayDate, 'weekly')
   );
-  const [collectionDay, setCollectionDay] = useState('Thursday');
+  const [collectionDay, setCollectionDay] = useState(() =>
+    getDefaultCollectionSlot(todayDate, 'weekly', calculateFirstDueDate(todayDate, 'weekly'))
+  );
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Automatically update first collection date to NEXT DAY whenever startDate or frequency changes
+  useEffect(() => {
+    const autoFirstDue = calculateFirstDueDate(startDate, frequency);
+    setFirstInstallmentDate(autoFirstDue);
+    setCollectionDay(getDefaultCollectionSlot(startDate, frequency, autoFirstDue));
+  }, [startDate, frequency]);
 
   // Live real-time calculation before saving
   const calculationResult = useMemo(() => {
@@ -55,8 +75,9 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
       durationValue: duration,
       frequency,
       startDate,
+      firstInstallmentDate,
     });
-  }, [principalRupees, interestType, customDeductionRupees, interestRatePercent, frequency, durationValue, startDate]);
+  }, [principalRupees, interestType, customDeductionRupees, interestRatePercent, frequency, durationValue, startDate, firstInstallmentDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +119,7 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
       frequency,
       durationValue: duration,
       startDate,
+      firstInstallmentDate,
       collectionDay,
       notes: notes.trim() || undefined,
     });
@@ -331,34 +353,83 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
             </div>
           </div>
 
-          {/* Start Date & Collection Day */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="disbursement-date">
-                Start / Disbursement Date
-              </label>
-              <input
-                id="disbursement-date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500"
-              />
+          {/* Start Date, First Due Date & Collection Slot */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Disbursement & Collection Schedule</span>
+              </span>
+              <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                <span>Next Day Auto-Collection</span>
+              </span>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="collection-day">
-                Collection Day / Slot
-              </label>
-              <input
-                id="collection-day"
-                type="text"
-                value={collectionDay}
-                onChange={(e) => setCollectionDay(e.target.value)}
-                placeholder="Everyday / Thursday"
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="disbursement-date">
+                  Disbursement Date
+                </label>
+                <input
+                  id="disbursement-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                  className="w-full h-11 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-[10px] text-slate-400 block mt-1">
+                  Cash handed out
+                </span>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300" htmlFor="first-installment-date">
+                    1st Due Date
+                  </label>
+                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/40 px-1.5 py-0.2 rounded">
+                    Next Day
+                  </span>
+                </div>
+                <input
+                  id="first-installment-date"
+                  type="date"
+                  value={firstInstallmentDate}
+                  onChange={(e) => {
+                    const newFirstDue = e.target.value;
+                    setFirstInstallmentDate(newFirstDue);
+                    setCollectionDay(getDefaultCollectionSlot(startDate, frequency, newFirstDue));
+                  }}
+                  required
+                  className="w-full h-11 px-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-emerald-500/60 dark:border-emerald-500 text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block mt-1">
+                  {frequency === 'daily'
+                    ? 'Tomorrow, then daily'
+                    : frequency === 'weekly'
+                    ? `Tomorrow, then every ${getWeekdayName(firstInstallmentDate)}`
+                    : '1st collection date'}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="collection-day">
+                  Collection Slot / Day
+                </label>
+                <input
+                  id="collection-day"
+                  type="text"
+                  value={collectionDay}
+                  onChange={(e) => setCollectionDay(e.target.value)}
+                  placeholder="Everyday / Every Saturday"
+                  className="w-full h-11 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-[10px] text-slate-400 block mt-1">
+                  Assigned recurring slot
+                </span>
+              </div>
             </div>
           </div>
 
@@ -413,7 +484,7 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
                   {/* Repayment schedule summary */}
                   <div className="grid grid-cols-3 gap-2 text-xs pt-1">
                     <div>
-                      <span className="text-slate-500 dark:text-slate-400 block">Weekly Installment</span>
+                      <span className="text-slate-500 dark:text-slate-400 block">Installment EMI</span>
                       <span className="font-extrabold text-slate-900 dark:text-white text-sm tabular-nums">
                         {formatINR(calculationResult.installmentAmountPaise)}
                       </span>
@@ -473,6 +544,85 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({
                     <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
                       {calculationResult.totalInstallments} collections
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Installment Sequence Preview Box */}
+              {calculationResult.schedule.length > 0 && (
+                <div className="pt-2 border-t border-emerald-200/80 dark:border-emerald-900/60">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900 dark:text-emerald-200 mb-1.5">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Collection Due Sequence</span>
+                    </span>
+                    <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-400">
+                      Starts next day · {frequency}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                    <div className="bg-white/90 dark:bg-slate-900/90 p-2 rounded-xl border border-emerald-300 dark:border-emerald-700/80 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
+                          Inst #1 (Next Day)
+                        </span>
+                        <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1 rounded font-semibold">
+                          Tomorrow
+                        </span>
+                      </div>
+                      <div className="font-extrabold text-slate-900 dark:text-white text-xs mt-0.5">
+                        {calculationResult.schedule[0].dueDate}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center mt-0.5">
+                        <span>{getWeekdayName(calculationResult.schedule[0].dueDate)}</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {formatINR(calculationResult.schedule[0].installmentAmountPaise)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {calculationResult.schedule[1] && (
+                      <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                            Inst #2
+                          </span>
+                          <span className="text-[9px] text-slate-400">
+                            {frequency === 'weekly' ? '+7 days' : '+1 day'}
+                          </span>
+                        </div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">
+                          {calculationResult.schedule[1].dueDate}
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center mt-0.5">
+                          <span>{getWeekdayName(calculationResult.schedule[1].dueDate)}</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">
+                            {formatINR(calculationResult.schedule[1].installmentAmountPaise)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                          Final (#{calculationResult.totalInstallments})
+                        </span>
+                        <span className="text-[9px] text-slate-400">Maturity</span>
+                      </div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">
+                        {calculationResult.maturityDate}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center mt-0.5">
+                        <span>{getWeekdayName(calculationResult.maturityDate)}</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {formatINR(
+                            calculationResult.schedule[calculationResult.schedule.length - 1]
+                              ?.installmentAmountPaise || 0
+                          )}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
